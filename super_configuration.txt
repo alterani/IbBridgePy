@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 06 15:29:18 2016
+
+@author: IBridgePy@gmail.com
+"""
+
+from IBridgePy.quantopian import LimitOrder, StopOrder, MarketOrder,TrailStopLimitOrder
+from IBridgePy.quantopian import LimitOnOpenOrder, LimitOnCloseOrder
+from IBridgePy.quantopian import calendars,date_rules, time_rules
+from IBridgePy.TradingRules import TradingRules, Indicator, IndicatorDetails
+from BasicPyLib.MarketCalendarWrapper import MarketCalendarWrapper
+from IBridgePy.MarketManagerBase import MarketManager
+import os
+from sys import exit
+import time
+from IBridgePy.constants import BrokerName, RunMode, DataProviderName
+
+try:
+    id(runMode)
+except:
+    runMode = RunMode.REGULAR
+
+try:
+    id(marketName)
+except:
+    marketName = 'NYSE'
+
+try:
+    id(fileName)
+except:
+    print (__name__+':EXIT, fileName is empty')
+    exit()
+
+if r'\\' in fileName or r'/' in fileName:
+    with open(fileName) as f:
+        script = f.read()
+    exec(script)
+else:
+    with open(os.path.join(os.getcwd(), 'Strategies', fileName)) as f:
+        script = f.read()
+    exec(script)
+
+try:
+    id(logLevel)
+except:
+    logLevel='INFO'
+
+try:
+    id(showTimeZone)
+except:
+    showTimeZone='US/Eastern'
+
+try:
+    id(clientId)
+except:
+    clientId=9
+
+try:
+    id(before_trading_start)
+except:
+    before_trading_start=None
+
+try:
+    id(handle_data)
+except:
+    handle_data=None
+
+try:
+    id(trader)
+    time.sleep(1)
+    trader.disconnect()
+    time.sleep(1)
+except:
+    time.sleep(1)
+
+try:
+    id(securityCheckWaiver)
+except:
+    securityCheckWaiver = False
+
+try:
+    id(runScheduledFunctionBeforeHandleData)
+except:
+    runScheduledFunctionBeforeHandleData = False
+
+try:
+    id(repBarFreq)
+except:
+    repBarFreq = 1
+
+if isinstance(accountCode, list):  # multi accounts
+    from IBridgePy.Trader_multi_account import Trader
+    if runMode == RunMode.SUDO_RUN_LIKE_QUANTOPIAN:
+        marketCalendar = MarketCalendarWrapper('Fake').getMarketCalendar()
+        repBarFreq = 60
+
+    elif runMode == RunMode.RUN_LIKE_QUANTOPIAN:
+        marketCalendar = MarketCalendarWrapper(marketName).getMarketCalendar()
+        repBarFreq = 60
+
+    elif runMode == RunMode.REGULAR:
+        marketCalendar = MarketCalendarWrapper(marketName).getMarketCalendar()
+
+    else:
+        print(__name__ + '::configuration: Multi mode cannot handle runMode = %s' % (runMode,))
+        exit()
+
+else:  # single account
+    if runMode == RunMode.BACK_TEST:
+        from IBridgePy.TEST_Trader_single_account import Trader
+        marketCalendar = MarketCalendarWrapper(marketName).getMarketCalendar()
+        repBarFreq = 60
+
+    elif runMode == RunMode.SUDO_RUN_LIKE_QUANTOPIAN:
+        from IBridgePy.TraderBase import Trader
+        marketCalendar = MarketCalendarWrapper('Fake').getMarketCalendar()
+        repBarFreq = 60
+
+    elif runMode == RunMode.RUN_LIKE_QUANTOPIAN:
+        from IBridgePy.TraderBase import Trader
+        marketCalendar = MarketCalendarWrapper(marketName).getMarketCalendar()
+        repBarFreq = 60
+
+    elif runMode == RunMode.REGULAR:
+        from IBridgePy.TraderBase import Trader
+        marketCalendar = MarketCalendarWrapper(marketName).getMarketCalendar()
+
+    else:
+        print(__name__ + '::configuration: cannot handle runMode = %s' % (runMode,))
+        exit()
+
+trader = Trader()
+trader.setup_trader(fileName=fileName,
+                    accountCode=accountCode,
+                    logLevel=logLevel,
+                    showTimeZone=showTimeZone,
+                    repBarFreq=repBarFreq,
+                    securityCheckWaiver=securityCheckWaiver,
+                    runScheduledFunctionBeforeHandleData=runScheduledFunctionBeforeHandleData,
+                    initialize_quantopian=initialize,
+                    handle_data_quantopian=handle_data,
+                    before_trading_start_quantopian=before_trading_start)
+
+with open('define_functions.txt') as f:
+    script = f.read()
+exec(script)
+
+try:
+    id(remoteHostIP)
+except:
+    remoteHostIP = ''
+
+try:
+    id(brokerName)
+except:
+    if runMode == RunMode.BACK_TEST:
+        brokerName = BrokerName.LOCAL_BROKER
+    else:
+        brokerName = BrokerName.IB
+
+try:
+    id(dataProviderName)
+except:
+    if runMode == RunMode.BACK_TEST:
+        dataProviderName = DataProviderName.RANDOM
+    else:
+        dataProviderName = DataProviderName.IB
+
+c = MarketManager(trader, marketCalendar, runMode, host=remoteHostIP, port=7496, clientId=clientId,
+                  brokerName=brokerName, dataProviderName=dataProviderName)
+c.run()
+
